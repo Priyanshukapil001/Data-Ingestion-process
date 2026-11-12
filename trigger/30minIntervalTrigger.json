@@ -1,0 +1,20 @@
+{
+	"name": "30minIntervalTrigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"type": "TumblingWindowTrigger",
+		"typeProperties": {
+			"frequency": "Minute",
+			"interval": 30,
+			"startTime": "2026-11-11T14:29:00Z",
+			"endTime": "2026-11-14T14:29:00Z",
+			"delay": "00:00:00",
+			"maxConcurrency": 50,
+			"retryPolicy": {
+				"intervalInSeconds": 30
+			},
+			"dependsOn": []
+		}
+	}
+}

@@ -1,0 +1,453 @@
+{
+	"name": "Account Ingestion",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get AccountFileName",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "DS_Blob_CSV",
+						"type": "DatasetReference",
+						"parameters": {
+							"folderPath": {
+								"value": "banking-dataset/account/Ingest",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Get AccountFileName",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@concat(\n    'SELECT COUNT(1) AS FileCount FROM dbo.accounts WHERE ImportFileName = ''',\n    activity('Get AccountFileName').output.childItems[0].name,\n    ''''\n)",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DS_AzureSqlTable",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": {
+								"value": "@pipeline().parameters.SchemaName",
+								"type": "Expression"
+							},
+							"TableName": {
+								"value": "@pipeline().parameters.Account_Table",
+								"type": "Expression"
+							}
+						}
+					}
+				}
+			},
+			{
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(\n    int(activity('Lookup1').output.firstRow.FileCount),\n    0\n)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Copy Accounts data",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"additionalColumns": [
+										{
+											"name": "ImportFileName",
+											"value": "$$FILENAME"
+										},
+										{
+											"name": "ImportFileDate",
+											"value": {
+												"value": "@formatDateTime(addHours(utcNow(), 5), 'yyyy-MM-dd HH:mm:ss')",
+												"type": "Expression"
+											}
+										}
+									],
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"wildcardFolderPath": "banking-dataset/account/Ingest",
+										"wildcardFileName": {
+											"value": "@activity('Get AccountFileName').output.childItems[0].name\n",
+											"type": "Expression"
+										},
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "AzureSqlSink",
+									"writeBehavior": "insert",
+									"sqlWriterUseTableLock": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "account_id",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"name": "account_id",
+												"type": "Int32",
+												"physicalType": "int"
+											}
+										},
+										{
+											"source": {
+												"name": "customer_id",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"name": "customer_id",
+												"type": "Int32",
+												"physicalType": "int"
+											}
+										},
+										{
+											"source": {
+												"name": "account_number",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"name": "account_number",
+												"type": "String",
+												"physicalType": "varchar"
+											}
+										},
+										{
+											"source": {
+												"name": "account_type",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"name": "account_type",
+												"type": "String",
+												"physicalType": "varchar"
+											}
+										},
+										{
+											"source": {
+												"name": "balance",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"name": "balance",
+												"type": "Decimal",
+												"physicalType": "decimal",
+												"scale": 2,
+												"precision": 18
+											}
+										},
+										{
+											"source": {
+												"name": "account_status",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"name": "status",
+												"type": "String",
+												"physicalType": "varchar"
+											}
+										},
+										{
+											"source": {
+												"name": "opened_date",
+												"type": "String",
+												"physicalType": "String"
+											},
+											"sink": {
+												"name": "opened_date",
+												"type": "Date",
+												"physicalType": "date"
+											}
+										},
+										{
+											"source": {
+												"name": "ImportFileName",
+												"type": "String"
+											},
+											"sink": {
+												"name": "ImportFileName",
+												"type": "String",
+												"physicalType": "varchar"
+											}
+										},
+										{
+											"source": {
+												"name": "ImportFileDate",
+												"type": "String"
+											},
+											"sink": {
+												"name": "ImportFileDate",
+												"type": "DateTime",
+												"physicalType": "datetime2"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_Blob_CSV",
+									"type": "DatasetReference",
+									"parameters": {
+										"folderPath": {
+											"value": "@concat(pipeline().parameters.folderpath, '/account/Ingest')\n",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_AzureSqlTable",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": {
+											"value": "@pipeline().parameters.SchemaName",
+											"type": "Expression"
+										},
+										"TableName": {
+											"value": "@pipeline().parameters.Account_Table",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Copy to Archive_copy1",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Copy Accounts data",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"wildcardFolderPath": "banking-dataset/account/Ingest",
+										"wildcardFileName": {
+											"value": "@activity('Get AccountFileName').output.childItems[0].name",
+											"type": "Expression"
+										},
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".csv"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_Blob_CSV",
+									"type": "DatasetReference",
+									"parameters": {
+										"folderPath": {
+											"value": "@concat(pipeline().parameters.folderpath, '/account')\n",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_Blob_CSV",
+									"type": "DatasetReference",
+									"parameters": {
+										"folderPath": {
+											"value": "@concat(\n    pipeline().parameters.folderpath,\n    '/account/Archive/',\n    formatDateTime(\n        convertFromUtc(utcNow(),'India Standard Time'),\n        'yyyyMMdd'\n    )\n)",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Delete1_copy1",
+							"type": "Delete",
+							"dependsOn": [
+								{
+									"activity": "Copy to Archive_copy1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "DS_Blob_CSV",
+									"type": "DatasetReference",
+									"parameters": {
+										"folderPath": {
+											"value": "@concat(pipeline().parameters.folderpath, '/account/Ingest')\n",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"folderpath": {
+				"type": "string",
+				"defaultValue": "banking-dataset/"
+			},
+			"filename": {
+				"type": "string"
+			},
+			"SchemaName": {
+				"type": "string",
+				"defaultValue": "dbo"
+			},
+			"Account_Table": {
+				"type": "string",
+				"defaultValue": "accounts"
+			},
+			"Transaction_Table": {
+				"type": "string",
+				"defaultValue": "transactions"
+			},
+			"Customers_Table": {
+				"type": "string",
+				"defaultValue": "customers"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-11-12T06:32:21Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

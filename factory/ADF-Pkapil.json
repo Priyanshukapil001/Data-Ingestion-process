@@ -1,0 +1,15 @@
+{
+	"name": "ADF-Pkapil",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "malaysiawest",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "865d3d13-e3cc-40c3-9968-5d06c9e0c8b8",
+		"tenantId": "f0883d1d-e78b-4b49-a935-1dbf2dcfc865"
+	}
+}

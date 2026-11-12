@@ -1,0 +1,65 @@
+{
+	"name": "DS_AzureSqlTable",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_Azure_DataIngestion",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"SchemaName": {
+				"type": "string"
+			},
+			"TableName": {
+				"type": "string",
+				"defaultValue": "@dataset().TableName"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "account_id",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "customer_id",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "account_number",
+				"type": "varchar"
+			},
+			{
+				"name": "account_type",
+				"type": "varchar"
+			},
+			{
+				"name": "balance",
+				"type": "decimal",
+				"precision": 18,
+				"scale": 2
+			},
+			{
+				"name": "status",
+				"type": "varchar"
+			},
+			{
+				"name": "opened_date",
+				"type": "date"
+			}
+		],
+		"typeProperties": {
+			"schema": {
+				"value": "@dataset().SchemaName",
+				"type": "Expression"
+			},
+			"table": {
+				"value": "@dataset().TableName",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
